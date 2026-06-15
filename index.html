@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tara's Market Quest: The Algebra Bazaar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #FF6B6B;
+            --secondary: #4ECDC4;
+            --accent: #FFE66D;
+            --bg-color: #f7f1e3;
+            --text-main: #2d3436;
+        }
+        /* Shops styling - European feel */
+        .shop-container {
+            position: relative;
+            width: 320px;
+            margin: 60px auto;
+            z-index: 10;
+            transition: all 0.8s ease;
+        }
+        
+        .shop-building {
+            background: #fafafa;
+            border-radius: 4px;
+            padding: 20px;
+            box-shadow: 
+                0 10px 0px #dcdde1, 
+                0 15px 25px rgba(0,0,0,0.15),
+                inset 0 0 0 2px rgba(0,0,0,0.05); /* Wall texture outline */
+            position: relative;
+            transform: translateY(0);
+            transition: transform 0.3s;
+            border-bottom: 8px solid #b2bec3; /* Foundation */
+        }
+
+        /* European Roof */
+        .shop-building::before {
+            content: '';
+            position: absolute;
+            top: -45px;
+            left: -10px;
+            width: calc(100% + 20px);
+            height: 50px;
+            background: repeating-linear-gradient(
+                to right,
+                var(--primary),
+                var(--primary) 15px,
+                rgba(0,0,0,0.1) 15px,
+                rgba(0,0,0,0.1) 16px
+            );
+            border-radius: 6px 6px 0 0;
+            box-shadow: 0 8px 10px rgba(0,0,0,0.2);
+            clip-path: polygon(10% 0, 90% 0, 100% 100%, 0% 100%); /* Slanted roof effect */
+        }
+        
+        /* Store Awning (Kanopi) */
+        .shop-awning {
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            width: calc(100% + 10px);
+            height: 25px;
+            background: repeating-linear-gradient(
+                90deg,
+                #ff7675,
+                #ff7675 20px,
+                #fff 20px,
+                #fff 40px
+            );
+            border-radius: 4px 4px 8px 8px;
+            box-shadow: 0 5px 8px rgba(0,0,0,0.15);
+            z-index: 2;
+        }
+
+        /* Store Window */
+        .shop-window {
+            background: #81ecec;
+            border: 4px solid #636e72;
+            border-radius: 8px 8px 2px 2px;
+            height: 80px;
+            margin-top: 15px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 5px 10px rgba(255,255,255,0.5);
+        }
+        
+        /* Window glare */
+        .shop-window::after {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: -20px;
+            width: 40px;
+            height: 150px;
+            background: rgba(255,255,255,0.4);
+            transform: rotate(45deg);
+        }
+
+        /* Store Door */
+        .shop-door {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 45px;
+            height: 70px;
+            background: #d63031;
+            border: 3px solid #636e72;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+        }
+
+        /* Door Handle */
+        .shop-door::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: 5px;
+            width: 6px;
+            height: 6px;
+            background: #f1c40f;
+            border-radius: 50%;
+        }
+
+        .shop-passed {
+            transform: scale(0.8) translateY(50px);
+            opacity: 0.5;
+            filter: grayscale(0.5);
+        }
+        
+        /* Tara Character CSS wrapper */
+        #tara {
+            position: absolute;
+            z-index: 50;
+            width: 120px;
+            height: 180px;
+            transition: top 1s ease-in-out, left 1s ease-in-out;
+            transform-origin: bottom center;
+            filter: drop-shadow(0 10px 5px rgba(0,0,0,0.2));
+        }
+
+        /* Inputs */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+
+        /* Confetti */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f00;
+            animation: fall linear forwards;
+        }
+        @keyframes fall {
+            to { transform: translateY(100vh) rotate(720deg); }
+        }
+
+        /* Responsive Layout Adjustments */
+        #ui-layer {
+            pointer-events: none;
+        }
+        #ui-layer > * {
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body class="math-bg text-gray-800 h-screen w-screen flex flex-col">
+
+    <!-- AUDIO ENGINE (Web Audio API) -->
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let isMuted = false;
+        
+        // Background Music Sequencer
+        let bgmOsc = null;
+        let bgmGain = null;
+        let isBgmPlaying = false;
+        let bgmInterval = null;
+
+        const startBgm = () => {
+            if (isMuted || isBgmPlaying) return;
+            isBgmPlaying = true;
+            
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            const melody = [
+                // Happy upbeat melody sequence (Frequency in Hz, duration, delay)
+                { f: 523.25, d: 0.15 }, { f: 659.25, d: 0.15 }, { f: 783.99, d: 0.3 }, 
+                { f: 659.25, d: 0.15 }, { f: 523.25, d: 0.15 }, { f: 392.00, d: 0.3 },
+                { f: 440.00, d: 0.15 }, { f: 523.25, d: 0.15 }, { f: 659.25, d: 0.3 },
+                { f: 523.25, d: 0.15 }, { f: 440.00, d: 0.15 }, { f: 349.23, d: 0.3 }
+            ];
+
+            let noteIndex = 0;
+            
+            const playNextNote = () => {
+                if(!isBgmPlaying || isMuted) return;
+                
+                const note = melody[noteIndex];
+                
+                bgmOsc = audioCtx.createOscillator();
+                bgmGain = audioCtx.createGain();
+                
+                bgmOsc.type = 'triangle'; // Soft tone for background
+                bgmOsc.frequency.setValueAtTime(note.f, audioCtx.currentTime);
+                
+                // Very quiet background volume
+                bgmGain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+                bgmGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + note.d);
+                
+                bgmOsc.connect(bgmGain);
+                bgmGain.connect(audioCtx.destination);
+                
+                bgmOsc.start();
+                bgmOsc.stop(audioCtx.currentTime + note.d);
+
+                noteIndex = (noteIndex + 1) % melody.length;
+            };
+
+            bgmInterval = setInterval(playNextNote, 300); // Tempo
+        };
+
+        const stopBgm = () => {
+            isBgmPlaying = false;
+            clearInterval(bgmInterval);
+            if(bgmGain) {
+                bgmGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+            }
+        };
+
+        const playTone = (freq, type, duration, vol=0.1) => {
+            if(isMuted) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        };
+
+        const sfx = {
+            correct: () => {
+                playTone(523.25, 'sine', 0.1, 0.2); // C5
+                setTimeout(() => playTone(659.25, 'sine', 0.1, 0.2), 100); // E5
+                setTimeout(() => playTone(783.99, 'sine', 0.2, 0.3), 200); // G5
+            },
+            wrong: () => {
+                playTone(300, 'sawtooth', 0.3, 0.2);
+                setTimeout(() => playTone(200, 'sawtooth', 0.4, 0.2), 150);
+            },
+            click: () => playTone(800, 'square', 0.05, 0.05),
+            levelUp: () => {
+                [523, 587, 659, 698, 783, 880, 987, 1046].forEach((f, i) => {
+                    setTimeout(() => playTone(f, 'sine', 0.1, 0.1), i * 100);
+                });
+            }
+        };
+    </script>
+
+    <!-- MAIN MENU SCENE -->
+    <div id="scene-menu" class="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-blue-300 to-green-200 z-50">
+        <!-- Clouds -->
+        <div class="absolute top-10 w-full opacity-50 flex justify-between px-10 pointer-events-none">
+            <i class="fas fa-cloud text-white text-6xl animate-float"></i>
+            <i class="fas fa-cloud text-white text-8xl animate-float" style="animation-delay: 1s;"></i>
+        </div>
+
+        <div class="text-center z-10 pop-in mb-8">
+            <h1 class="text-5xl md:text-7xl font-bold text-white drop-shadow-lg tracking-wide border-b-4 border-yellow-400 pb-2">
+                TARA'S MARKET QUEST
+            </h1>
+            <h2 class="text-3xl md:text-4xl font-bold text-yellow-300 drop-shadow-md mt-2">
+                THE ALGEBRA BAZAAR
+            </h2>
+        </div>
+
+        <!-- Tara Menu Character -->
+        <div class="w-48 h-48 mb-8 animate-float">
+            <svg viewBox="0 0 200 300" width="100%" height="100%">
+                <!-- Shadow -->
+                <ellipse cx="100" cy="280" rx="40" ry="10" fill="rgba(0,0,0,0.2)"/>
+                <!-- Legs -->
+                <rect x="80" y="180" width="15" height="80" fill="#f1c27d" rx="5"/>
+                <rect x="105" y="180" width="15" height="80" fill="#f1c27d" rx="5"/>
+                <!-- Sneakers -->
+                <path d="M 75 260 L 95 260 C 100 260 100 270 95 270 L 70 270 C 65 270 65 260 75 260" fill="white"/>
+                <path d="M 100 260 L 120 260 C 125 260 125 270 120 270 L 95 270 C 90 270 90 260 100 260" fill="white"/>
+                <!-- Skirt -->
+                <path d="M 70 150 L 130 150 L 140 190 L 60 190 Z" fill="#8B4513"/>
+                <!-- Body (Shirt) -->
+                <rect x="75" y="90" width="50" height="60" fill="white" rx="10"/>
+                <text x="100" y="125" font-size="10" text-anchor="middle" fill="#FF6B6B" font-weight="bold">MATH</text>
+                <!-- Arms waving -->
+                <path d="M 75 100 Q 50 80 40 50" stroke="#f1c27d" stroke-width="12" fill="none" stroke-linecap="round"/>
+                <path d="M 125 100 Q 140 130 135 160" stroke="#f1c27d" stroke-width="12" fill="none" stroke-linecap="round"/>
+                <!-- Head -->
+                <circle cx="100" cy="60" r="35" fill="#f1c27d"/>
+                <!-- Hair (Brown short) -->
+                <path d="M 60 60 Q 60 10 100 20 Q 140 10 140 60 Q 140 90 125 90 Q 110 50 100 50 Q 90 50 75 90 Q 60 90 60 60" fill="#5D4037"/>
+                <!-- Eyes -->
+                <circle cx="85" cy="55" r="5" fill="black"/>
+                <circle cx="115" cy="55" r="5" fill="black"/>
+                <!-- Smile -->
+                <path d="M 90 65 Q 100 75 110 65" stroke="black" stroke-width="2" fill="none" stroke-linecap="round"/>
+                <!-- Blush -->
+                <circle cx="75" cy="65" r="4" fill="pink" opacity="0.6"/>
+                <circle cx="125" cy="65" r="4" fill="pink" opacity="0.6"/>
+            </svg>
+        </div>
+
+        <div class="flex flex-col gap-4 w-64">
+            <button onclick="startGame()" class="bg-primary hover:bg-red-500 text-white font-bold py-3 px-6 rounded-full shadow-[0_6px_0_#c0392b] active:shadow-[0_0px_0_#c0392b] active:translate-y-[6px] transition-all text-xl">
+                <i class="fas fa-play mr-2"></i> Mulai Bermain
+            </button>
+            <button onclick="showTutorial()" class="bg-secondary hover:bg-teal-500 text-white font-bold py-3 px-6 rounded-full shadow-[0_6px_0_#16a085] active:shadow-[0_0px_0_#16a085] active:translate-y-[6px] transition-all text-xl">
+                <i class="fas fa-book-open mr-2"></i> Tutorial
+            </button>
+            <button onclick="showSettings()" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-full shadow-[0_6px_0_#7f8c8d] active:shadow-[0_0px_0_#7f8c8d] active:translate-y-[6px] transition-all text-xl">
+                <i class="fas fa-cog mr-2"></i> Pengaturan
+            </button>
+        </div>
+    </div>
+
+    <!-- GAME SCENE -->
+    <div id="scene-game" class="hidden absolute inset-0 flex flex-col h-full w-full">
+        
+        <!-- HUD Atas -->
+        <div id="hud-top" class="bg-white/90 backdrop-blur shadow-md p-2 md:p-4 flex justify-between items-center z-50">
+            <div class="flex items-center gap-2 md:gap-4">
+                <div class="bg-blue-100 text-blue-800 px-3 py-1 rounded-lg font-bold">
+                    <i class="fas fa-user-circle"></i> <span id="hud-name">Pemain</span>
+                </div>
+                <div class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-lg font-bold">
+                    <i class="fas fa-star text-yellow-500"></i> Skor: <span id="hud-score">0</span>
+                </div>
+            </div>
+            
+            <div class="flex-1 max-w-xs mx-4 hidden md:block">
+                <div class="text-xs text-center font-bold text-gray-500 mb-1">PROGRES TOKO (<span id="hud-level">1</span>/20)</div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div id="progress-bar" class="bg-green-500 h-2.5 rounded-full transition-all duration-500" style="width: 5%"></div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 md:gap-4">
+                <div id="timer-container" class="bg-red-100 text-red-600 px-3 py-1 rounded-lg font-bold text-xl flex items-center min-w-[80px] justify-center">
+                    <i class="fas fa-clock mr-2"></i> <span id="hud-timer">60</span>
+                </div>
+                <button onclick="showSettings()" class="bg-gray-200 text-gray-700 p-2 rounded-full hover:bg-gray-300">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Progress bar for mobile -->
+        <div class="w-full bg-gray-200 h-1.5 md:hidden z-50">
+            <div id="progress-bar-mobile" class="bg-green-500 h-1.5 transition-all duration-500" style="width: 5%"></div>
+        </div>
+
+        <!-- Game World (Scrollable) -->
+        <div id="game-world" class="flex-1 relative">
+            <!-- Tara Character -->
+            <div id="tara" class="animate-idle">
+                <!-- SVG Tara dynamically injected to allow face changes -->
+                <svg id="tara-svg" viewBox="0 0 200 300" width="100%" height="100%">
+                    <!-- Base elements defined via JS based on state -->
+                </svg>
+            </div>
+
+            <!-- Shops Container -->
+            <div id="shops-container" class="pb-64 pt-10 px-4 md:px-20 relative">
+                <!-- Shops generated here -->
+            </div>
+        </div>
+
+        <!-- HUD Bawah (Interaction Area) -->
+        <div id="hud-bottom" class="bg-white shadow-[0_-10px_20px_rgba(0,0,0,0.1)] p-4 md:p-6 z-50 rounded-t-3xl border-t-4 border-primary">
+            
+            <div class="max-w-4xl mx-auto flex flex-col md:flex-row gap-4 md:gap-8 items-center">
+                
+                <!-- Soal Area -->
+                <div class="flex-1 w-full bg-yellow-50 p-4 rounded-xl border-2 border-yellow-200 relative">
+                    <div class="absolute -top-3 -left-3 bg-primary text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg shadow-md border-2 border-white">
+                        <i class="fas fa-question"></i>
+                    </div>
+                    <h3 id="shop-name-display" class="font-bold text-lg text-primary mb-2 border-b-2 border-yellow-200 pb-1">Nama Toko</h3>
+                    <p id="question-text" class="text-gray-700 font-semibold text-sm md:text-base leading-relaxed">
+                        Memuat soal...
+                    </p>
+                </div>
+
+                <!-- Input Area -->
+                <div class="flex-1 w-full flex flex-col gap-3">
+                    <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border">
+                        <span class="w-8 text-center text-xl"><i id="icon-item-a" class="fas fa-box text-blue-500"></i></span>
+                        <span class="font-bold text-gray-600 w-20 truncate" id="label-item-a">Barang A</span>
+                        <span class="font-bold text-gray-400">Rp</span>
+                        <input type="number" id="input-a" class="flex-1 bg-white border-b-2 border-gray-300 focus:border-primary outline-none font-bold text-lg px-2 py-1 text-right" placeholder="0">
+                    </div>
+                    
+                    <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border">
+                        <span class="w-8 text-center text-xl"><i id="icon-item-b" class="fas fa-box text-green-500"></i></span>
+                        <span class="font-bold text-gray-600 w-20 truncate" id="label-item-b">Barang B</span>
+                        <span class="font-bold text-gray-400">Rp</span>
+                        <input type="number" id="input-b" class="flex-1 bg-white border-b-2 border-gray-300 focus:border-secondary outline-none font-bold text-lg px-2 py-1 text-right" placeholder="0">
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-row md:flex-col gap-2 w-full md:w-auto justify-center">
+                    <button onclick="checkAnswer()" class="flex-1 md:w-40 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-xl shadow-[0_5px_0_#27ae60] active:translate-y-[5px] active:shadow-none transition-all text-lg flex items-center justify-center gap-2">
+                        <i class="fas fa-check-circle"></i> Cek
+                    </button>
+                    <div class="flex flex-1 gap-2">
+                        <button onclick="showHint()" class="flex-1 bg-blue-400 hover:bg-blue-500 text-white font-bold py-2 rounded-xl shadow-[0_4px_0_#2980b9] active:translate-y-[4px] active:shadow-none transition-all text-sm">
+                            <i class="fas fa-lightbulb"></i> Petunjuk
+                        </button>
+                        <button onclick="retryQuestion()" class="flex-1 bg-orange-400 hover:bg-orange-500 text-white font-bold py-2 rounded-xl shadow-[0_4px_0_#d35400] active:translate-y-[4px] active:shadow-none transition-all text-sm">
+                            <i class="fas fa-redo"></i> Ulang
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- CERTIFICATE TEMPLATE (Hidden) -->
+    <div id="certificate-template" class="hidden fixed inset-0 z-0 bg-white" style="width: 800px; height: 600px; padding: 40px;">
+        <div style="border: 10px solid var(--primary); padding: 20px; height: 100%; text-align: center; background-image: radial-gradient(circle, #fff, #fff8e1); position: relative;">
+            <div style="position: absolute; top: 10px; left: 10px; opacity: 0.2; font-size: 100px;"><i class="fas fa-award"></i></div>
+            <div style="position: absolute; bottom: 10px; right: 10px; opacity: 0.2; font-size: 100px;"><i class="fas fa-graduation-cap"></i></div>
+            
+            <h1 style="color: var(--primary); font-family: 'Fredoka', sans-serif; font-size: 40px; margin-top: 20px; text-transform: uppercase;">Certificate of Achievement</h1>
+            <h2 style="color: #666; font-family: 'Nunito', sans-serif; margin-bottom: 40px;">TARA'S MARKET QUEST: THE ALGEBRA BAZAAR</h2>
+            
+            <p style="font-size: 20px; color: #444;">Diberikan dengan bangga kepada:</p>
+            <h3 id="cert-name" style="font-size: 36px; font-weight: bold; color: var(--text-main); margin: 20px 0; border-bottom: 2px solid #ccc; display: inline-block; padding: 0 40px;">Nama Pemain</h3>
+            
+            <p style="font-size: 18px; line-height: 1.6; max-width: 600px; margin: 0 auto;">
+                Atas keberhasilannya menyelesaikan 20 level tantangan Sistem Persamaan Linear Dua Variabel (SPLDV) dan resmi mendapatkan gelar:
+            </p>
+            
+            <div style="background: var(--accent); color: #333; padding: 15px 30px; border-radius: 50px; display: inline-block; font-weight: bold; font-size: 24px; margin: 30px 0; border: 2px dashed #d4af37;">
+                <i class="fas fa-crown text-yellow-600"></i> MASTER OF MARKET ALGEBRA
+            </div>
+            
+            <div style="display: flex; justify-content: center; gap: 40px; margin-top: 20px; font-family: 'Nunito', sans-serif;">
+                <div style="text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: var(--secondary);" id="cert-score">0</div>
+                    <div style="font-size: 14px; color: #777;">Total Skor</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: var(--secondary);">20 / 20</div>
+                    <div style="font-size: 14px; color: #777;">Toko Diselesaikan</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- GAME DATA & CONFIGURATION ---
+        const LEVELS = [
+            { id: 1, name: "Toko Buah Segar", bg: "#ff9ff3", iconA: "fa-apple-alt", iconB: "fa-lemon", itemA: "Apel", itemB: "Jeruk", varType: "integer" },
+            { id: 2, name: "Toko Alat Tulis", bg: "#feca57", iconA: "fa-book", iconB: "fa-pencil-alt", itemA: "Buku", itemB: "Pensil", varType: "integer" },
+            { id: 3, name: "Toko Bahan Kue", bg: "#ff6b6b", iconA: "fa-bread-slice", iconB: "fa-cubes", itemA: "Tepung", itemB: "Gula", varType: "fraction_story" },
+            { id: 4, name: "Toko Kelontong", bg: "#48dbfb", iconA: "fa-pump-soap", iconB: "fa-prescription-bottle", itemA: "Sabun", itemB: "Sampo", varType: "diff_coeff" },
+            { id: 5, name: "Toko Roti", bg: "#1dd1a1", iconA: "fa-dot-circle", iconB: "fa-moon", itemA: "Donat", itemB: "Croissant", varType: "total_price" },
+            { id: 6, name: "Toko Sayuran", bg: "#00d2d3", iconA: "fa-carrot", iconB: "fa-leaf", itemA: "Wortel", itemB: "Bayam", varType: "discount" },
+            { id: 7, name: "Toko Minuman", bg: "#5f27cd", iconA: "fa-mug-hot", iconB: "fa-glass-water", itemA: "Kopi", itemB: "Teh", varType: "hundreds" },
+            { id: 8, name: "Toko Bunga", bg: "#c8d6e5", iconA: "fa-seedling", iconB: "fa-fan", itemA: "Mawar", itemB: "Tulip", varType: "difference" },
+            { id: 9, name: "Toko Kain", bg: "#ff9f43", iconA: "fa-scroll", iconB: "fa-ring", itemA: "Katun", itemB: "Sutra", varType: "ratio" },
+            { id: 10, name: "Toko Pet Shop", bg: "#ee5253", iconA: "fa-cat", iconB: "fa-dog", itemA: "Makanan Kucing", itemB: "Makanan Anjing", varType: "checkpoint" },
+            { id: 11, name: "Toko Baterai", bg: "#0abde3", iconA: "fa-battery-full", iconB: "fa-battery-half", itemA: "Baterai AA", itemB: "Baterai AAA", varType: "decimal_sim" },
+            { id: 12, name: "Toko Cat", bg: "#10ac84", iconA: "fa-fill-drip", iconB: "fa-paint-roller", itemA: "Cat Merah", itemB: "Cat Biru", varType: "integer" },
+            { id: 13, name: "Toko Perabot", bg: "#222f3e", iconA: "fa-hammer", iconB: "fa-screwdriver", itemA: "Paku (Kotak)", itemB: "Sekrup (Kotak)", varType: "elimination" },
+            { id: 14, name: "Toko Snack", bg: "#f368e0", iconA: "fa-cookie", iconB: "fa-cookie-bite", itemA: "Keripik", itemB: "Kacang", varType: "integer" },
+            { id: 15, name: "Toko Daging", bg: "#ff9f43", iconA: "fa-drumstick-bite", iconB: "fa-bacon", itemA: "Daging Ayam", itemB: "Daging Sapi", varType: "thousands" },
+            { id: 16, name: "Toko Buku Bekas", bg: "#8395a7", iconA: "fa-book-open", iconB: "fa-atlas", itemA: "Komik", itemB: "Novel", varType: "package" },
+            { id: 17, name: "Toko Kosmetik", bg: "#ff9ff3", iconA: "fa-magic", iconB: "fa-mask", itemA: "Lipstik", itemB: "Masker", varType: "integer" },
+            { id: 18, name: "Toko Dekorasi", bg: "#feca57", iconA: "fa-lightbulb", iconB: "fa-image", itemA: "Lampu", itemB: "Bingkai", varType: "indirect" },
+            { id: 19, name: "Toko Alat Jahit", bg: "#54a0ff", iconA: "fa-compress", iconB: "fa-circle", itemA: "Benang", itemB: "Kancing", varType: "integer" },
+            { id: 20, name: "Toko Kado (BOSS)", bg: "#ff4757", iconA: "fa-ribbon", iconB: "fa-gift", itemA: "Pita", itemB: "Kertas Kado", varType: "boss" }
+        ];
+
+        let state = {
+            playerName: "Siswa",
+            currentLevel: 0,
+            score: 0,
+            timeLeft: 60,
+            timerInterval: null,
+            currentProblem: null, // {x, y, text1, text2}
+            isAnimating: false
+        };
+
+        const DOM = {
+            menu: document.getElementById('scene-menu'),
+            game: document.getElementById('scene-game'),
+            shopsContainer: document.getElementById('shops-container'),
+            tara: document.getElementById('tara'),
+            taraSvg: document.getElementById('tara-svg'),
+            world: document.getElementById('game-world'),
+            hud: {
+                name: document.getElementById('hud-name'),
+                score: document.getElementById('hud-score'),
+                level: document.getElementById('hud-level'),
+                timer: document.getElementById('hud-timer'),
+                timerContainer: document.getElementById('timer-container'),
+                progressBar: document.getElementById('progress-bar'),
+                progressBarMobile: document.getElementById('progress-bar-mobile')
+            },
+            panel: {
+                shopName: document.getElementById('shop-name-display'),
+                question: document.getElementById('question-text'),
+                labelA: document.getElementById('label-item-a'),
+                labelB: document.getElementById('label-item-b'),
+                iconA: document.getElementById('icon-item-a'),
+                iconB: document.getElementById('icon-item-b'),
+                inputA: document.getElementById('input-a'),
+                inputB: document.getElementById('input-b')
+            }
+        };
+
+        // --- TARA SVG GENERATOR ---
+        function renderTara(expression = 'idle') {
+            let eyeState = '<circle cx="85" cy="55" r="6" fill="#2c3e50"/><circle cx="115" cy="55" r="6" fill="#2c3e50"/><circle cx="83" cy="53" r="2" fill="white"/><circle cx="113" cy="53" r="2" fill="white"/>';
+            let mouthState = '<path d="M 90 65 Q 100 75 110 65" stroke="#2c3e50" stroke-width="2.5" fill="none" stroke-linecap="round"/>';
+            let armState = `
+                <path d="M 75 100 L 60 140" stroke="#f1c27d" stroke-width="12" stroke-linecap="round"/>
+                <path d="M 125 100 L 140 140" stroke="#f1c27d" stroke-width="12" stroke-linecap="round"/>`;
+            
+            if(expression === 'happy') {
+                eyeState = '<path d="M 80 55 Q 85 45 90 55" stroke="#2c3e50" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M 110 55 Q 115 45 120 55" stroke="#2c3e50" stroke-width="3" fill="none" stroke-linecap="round"/>';
+                mouthState = '<path d="M 85 65 Q 100 85 115 65 Z" fill="#e74c3c"/>';
+                armState = `
+                <path d="M 75 100 Q 50 80 40 50" stroke="#f1c27d" stroke-width="12" fill="none" stroke-linecap="round"/>
+                <path d="M 125 100 Q 150 80 160 50" stroke="#f1c27d" stroke-width="12" fill="none" stroke-linecap="round"/>`;
+            } else if (expression === 'angry' || expression === 'sad') {
+                eyeState = '<path d="M 75 50 L 90 55 L 85 60 Z" fill="#2c3e50"/><path d="M 125 50 L 110 55 L 115 60 Z" fill="#2c3e50"/>';
+                mouthState = '<path d="M 90 70 Q 100 60 110 70" stroke="#2c3e50" stroke-width="2.5" fill="none" stroke-linecap="round"/>';
+                armState = `
+                <path d="M 75 100 L 90 120 L 75 140" stroke="#f1c27d" stroke-width="12" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+                <path d="M 125 100 L 110 120 L 125 140" stroke="#f1c27d" stroke-width="12" fill="none" stroke-linejoin="round" stroke-linecap="round"/>`;
+            }
+
+            DOM.taraSvg.innerHTML = `
+                <ellipse cx="100" cy="280" rx="40" ry="10" fill="rgba(0,0,0,0.2)"/>
+                <!-- Legs -->
+                <rect x="80" y="180" width="14" height="80" fill="#f1c27d" rx="5"/>
+                <rect x="106" y="180" width="14" height="80" fill="#f1c27d" rx="5"/>
+                <!-- Sneakers -->
+                <path d="M 75 260 L 95 260 C 100 260 100 270 95 270 L 70 270 C 65 270 65 260 75 260" fill="white" stroke="#e0e0e0" stroke-width="2"/>
+                <path d="M 100 260 L 120 260 C 125 260 125 270 120 270 L 95 270 C 90 270 90 260 100 260" fill="white" stroke="#e0e0e0" stroke-width="2"/>
+                <!-- Skirt -->
+                <path d="M 70 150 L 130 150 L 140 190 L 60 190 Z" fill="#8B4513"/>
+                <!-- Body -->
+                <rect x="75" y="90" width="50" height="65" fill="white" rx="12"/>
+                <text x="100" y="120" font-size="9" font-family="Arial" font-weight="bold" text-anchor="middle" fill="#FF6B6B">TARA</text>
+                <text x="100" y="132" font-size="7" font-family="Arial" font-weight="bold" text-anchor="middle" fill="#FF6B6B">MATH</text>
+                <!-- Arms -->
+                ${armState}
+                <!-- Head -->
+                <circle cx="100" cy="60" r="35" fill="#f1c27d"/>
+                <!-- Hair Base -->
+                <path d="M 60 60 Q 60 5 100 15 Q 140 5 140 60 Q 140 100 125 100 Q 110 50 100 50 Q 90 50 75 100 Q 60 100 60 60" fill="#5D4037"/>
+                <!-- Hair Bangs -->
+                <path d="M 65 50 Q 80 30 100 40 Q 120 30 135 50 Q 120 15 100 20 Q 80 15 65 50" fill="#4E342E"/>
+                <!-- Face Details -->
+                ${eyeState}
+                ${mouthState}
+                <circle cx="75" cy="65" r="5" fill="#ff7675" opacity="0.5"/>
+                <circle cx="125" cy="65" r="5" fill="#ff7675" opacity="0.5"/>
+            `;
+        }
+
+        function setTaraAnimation(animClass) {
+            DOM.tara.className = ''; 
+            void DOM.tara.offsetWidth; // trigger reflow
+            DOM.tara.classList.add(`animate-${animClass}`);
+            renderTara(animClass === 'angry' ? 'angry' : (animClass === 'happy' ? 'happy' : 'idle'));
+        }
+
+        // --- MATH PROBLEM GENERATOR ---
+        function generateMathProblem(level) {
+            // Generate base prices (multiples of 500 or 1000)
+            const priceA = (Math.floor(Math.random() * 15) + 3) * 1000; // 3k to 17k
+            const priceB = (Math.floor(Math.random() * 15) + 2) * 1000; // 2k to 16k
+            
+            let a1, b1, a2, b2, c1, c2;
+            let text1 = "", text2 = "";
+
+            // Standardize logic to prevent non-independent equations
+            do {
+                a1 = Math.floor(Math.random() * 4) + 1;
+                b1 = Math.floor(Math.random() * 4) + 1;
+                a2 = Math.floor(Math.random() * 4) + 1;
+                b2 = Math.floor(Math.random() * 4) + 1;
+            } while ((a1 * b2) === (a2 * b1) || (a1 === a2 && b1 === b2)); // Ensure not parallel/identical
+
+            c1 = (a1 * priceA) + (b1 * priceB);
+            c2 = (a2 * priceA) + (b2 * priceB);
+
+            const formatRp = (num) => `Rp${num.toLocaleString('id-ID')}`;
+
+            // Formatting strings based on level variation to make it educational
+            switch(level.varType) {
+                case "discount":
+                    text1 = `Harga normal ${a1} ${level.itemA} dan ${b1} ${level.itemB} adalah ${formatRp(c1)}.`;
+                    let disc = 2000;
+                    text2 = `Jika mendapat diskon ${formatRp(disc)}, harga ${a2} ${level.itemA} dan ${b2} ${level.itemB} menjadi ${formatRp(c2 - disc)}.`;
+                    break;
+                case "difference":
+                    text1 = `Harga ${a1} ${level.itemA} dan ${b1} ${level.itemB} adalah ${formatRp(c1)}.`;
+                    let diff = Math.abs(priceA - priceB);
+                    let expensive = priceA > priceB ? level.itemA : level.itemB;
+                    let cheap = priceA > priceB ? level.itemB : level.itemA;
+                    text2 = `Harga 1 ${expensive} lebih mahal ${formatRp(diff)} dari 1 ${cheap}.`;
+                    break;
+                case "ratio":
+                    text1 = `Ibu membayar ${formatRp(c1)} untuk ${a1} ${level.itemA} dan ${b1} ${level.itemB}.`;
+                    text2 = `Harga ${a2} ${level.itemA} sama dengan harga ${(a2*priceA)/priceB} ${level.itemB} (Total ${formatRp(a2*priceA)}).`;
+                    // simplifying for ratio
+                    if((a2*priceA)%priceB !== 0) {
+                        // fallback to standard if ratio is not integer
+                        text2 = `Harga ${a2} ${level.itemA} dan ${b2} ${level.itemB} adalah ${formatRp(c2)}.`;
+                    }
+                    break;
+                case "boss":
+                    text1 = `Paket A: ${a1} ${level.itemA} + ${b1} ${level.itemB} = ${formatRp(c1)}.`;
+                    text2 = `Paket B: ${a2} ${level.itemA} + ${b2} ${level.itemB} = ${formatRp(c2)}.`;
+                    break;
+                default:
+                    text1 = `Harga ${a1} ${level.itemA} dan ${b1} ${level.itemB} adalah ${formatRp(c1)}.`;
+                    text2 = `Harga ${a2} ${level.itemA} dan ${b2} ${level.itemB} adalah ${formatRp(c2)}.`;
+            }
+
+            return { x: priceA, y: priceB, text: `${text1}<br><br>${text2}` };
+        }
+
+        // --- GAME LOGIC ---
+
+        async function showTutorial() {
+            sfx.click();
+            await Swal.fire({
+                title: '<span style="font-family:Fredoka; color:#FF6B6B">Cara Bermain</span>',
+                html: `
+                    <div class="text-left text-sm md:text-base space-y-3">
+                        <p>👋 Halo! Bantu Tara belanja di <b>20 Toko</b>.</p>
+                        <p>🛒 Di setiap toko, baca soal cerita yang diberikan.</p>
+                        <p>🧮 Soal berupa Sistem Persamaan Linear Dua Variabel (SPLDV).</p>
+                        <p>⏱️ Kamu punya waktu <b>60 Detik</b> per toko untuk menebak harga satuan kedua barang.</p>
+                        <p>✅ Jika benar, kamu lanjut ke toko berikutnya dan dapat poin!</p>
+                        <p>❌ Jika salah atau waktu habis, Tara akan sedih/marah, tapi kamu bisa mengulanginya (Skor berkurang 10).</p>
+                        <p>🎓 Selesaikan semua toko untuk mendapat gelar <b>Master of Market Algebra</b> dan Sertifikat!</p>
+                    </div>
+                `,
+                confirmButtonText: 'Mengerti!',
+                confirmButtonColor: '#4ECDC4'
+            });
+        }
+
+        async function showSettings() {
+            sfx.click();
+            const result = await Swal.fire({
+                title: 'Pengaturan',
+                showDenyButton: true,
+                showCancelButton: true,
+                confirmButtonText: isMuted ? 'Nyalakan Suara' : 'Matikan Suara',
+                denyButtonText: `Mulai Ulang Game`,
+                cancelButtonText: 'Tutup',
+                confirmButtonColor: '#4ECDC4',
+                denyButtonColor: '#FF6B6B'
+            });
+
+            if (result.isConfirmed) {
+                isMuted = !isMuted;
+                if(!isMuted) {
+                    startBgm();
+                } else {
+                    stopBgm();
+                }
+                Swal.fire(`Suara ${isMuted ? 'dimatikan' : 'dinyalakan'}`, '', 'success');
+            } else if (result.isDenied) {
+                if(confirm("Yakin ingin mengulang dari awal? Semua progres akan hilang.")) {
+                    location.reload();
+                }
+            }
+        }
+
+        async function startGame() {
+            sfx.click();
+            
+            // Resume audio context on user interaction to comply with browser autoplay policies
+            if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
+
+            const { value: name } = await Swal.fire({
+                title: 'Siapa namamu?',
+                input: 'text',
+                inputPlaceholder: 'Masukkan nama panggilan...',
+                allowOutsideClick: false,
+                confirmButtonColor: '#FF6B6B',
+                inputValidator: (value) => {
+                    if (!value) return 'Nama tidak boleh kosong!'
+                }
+            });
+
+            state.playerName = name || "Pemain";
+            DOM.hud.name.textContent = state.playerName;
+            
+            DOM.menu.classList.add('hidden');
+            DOM.game.classList.remove('hidden');
+            
+            buildWorld();
+            renderTara('idle');
+            
+            // Start Background Music
+            startBgm();
+            
+            // Wait for render
+            setTimeout(() => {
+                loadLevel(0);
+            }, 500);
+        }
+
+        function buildWorld() {
+            DOM.shopsContainer.innerHTML = '';
+            
+            // Draw path line
+            const path = document.createElement('div');
+            path.className = 'path-line top-0 bottom-0 left-1/2 transform -translate-x-1/2';
+            DOM.shopsContainer.appendChild(path);
+
+            LEVELS.forEach((lvl, index) => {
+                const isLeft = index % 2 === 0;
+                const marginClass = isLeft ? 'mr-auto ml-4 md:ml-10' : 'ml-auto mr-4 md:mr-10';
+                
+                const shopDiv = document.createElement('div');
+                shopDiv.id = `shop-${index}`;
+                shopDiv.className = `shop-container ${marginClass} transition-all duration-1000`;
+                
+                // Keep initial shops invisible/small except first few
+                if(index > 0) shopDiv.style.opacity = '0.2';
+                
+                // Alternate awning colors for variety
+                const awningColor = isLeft ? '#ff7675' : '#74b9ff';
+                
+                shopDiv.innerHTML = `
+                    <div class="shop-building" style="--primary: ${lvl.bg}">
+                        <div class="shop-awning" style="background: repeating-linear-gradient(90deg, ${awningColor}, ${awningColor} 20px, #fff 20px, #fff 40px)"></div>
+                        <div class="text-center font-bold text-gray-800 text-lg mb-1 relative z-10 bg-white/80 rounded px-2 inline-block mx-auto mt-2 border border-gray-200">${lvl.id}. ${lvl.name}</div>
+                        
+                        <div class="shop-window flex justify-around items-center px-2">
+                            <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm">
+                                <i class="fas ${lvl.iconA} text-lg text-${isLeft ? 'red' : 'blue'}-500"></i>
+                            </div>
+                            <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm">
+                                <i class="fas ${lvl.iconB} text-lg text-green-500"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="shop-door" style="background: ${lvl.bg}"></div>
+                        
+                        <div class="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-24 h-6 bg-black/20 rounded-full blur-[4px]"></div>
+                    </div>
+                `;
+                DOM.shopsContainer.appendChild(shopDiv);
+            });
+        }
+
+        function loadLevel(index) {
+            if(index >= LEVELS.length) {
+                endGame();
+                return;
+            }
+
+            state.currentLevel = index;
+            const lvl = LEVELS[index];
+            state.currentProblem = generateMathProblem(lvl);
+
+            // Update UI
+            DOM.hud.level.textContent = index + 1;
+            const progressPct = ((index) / LEVELS.length) * 100;
+            DOM.hud.progressBar.style.width = `${progressPct}%`;
+            DOM.hud.progressBarMobile.style.width = `${progressPct}%`;
+
+            DOM.panel.shopName.textContent = `${lvl.id}. ${lvl.name}`;
+            DOM.panel.question.innerHTML = state.currentProblem.text;
+            
+            DOM.panel.labelA.textContent = lvl.itemA;
+            DOM.panel.labelB.textContent = lvl.itemB;
+            DOM.panel.iconA.className = `fas ${lvl.iconA} text-blue-500`;
+            DOM.panel.iconB.className = `fas ${lvl.iconB} text-green-500`;
+            
+            DOM.panel.inputA.value = '';
+            DOM.panel.inputB.value = '';
+            DOM.panel.inputA.focus();
+
+            // Setup Timer
+            clearInterval(state.timerInterval);
+            state.timeLeft = 60;
+            updateTimerDisplay();
+            state.timerInterval = setInterval(timerTick, 1000);
+
+            // Move Camera & Tara
+            moveTaraToShop(index);
+        }
+
+        function moveTaraToShop(index) {
+            state.isAnimating = true;
+            const targetShop = document.getElementById(`shop-${index}`);
+            const shopRect = targetShop.getBoundingClientRect();
+            const containerRect = DOM.shopsContainer.getBoundingClientRect();
+            
+            // Highlight current shop
+            targetShop.style.opacity = '1';
+            targetShop.classList.add('pop-in');
+
+            // Dim previous shops
+            if(index > 0) {
+                for(let i=0; i<index; i++) {
+                    const prevShop = document.getElementById(`shop-${i}`);
+                    if(prevShop) prevShop.classList.add('shop-passed');
+                }
+            }
+
+            // Calculate Tara's position relative to the container
+            const topPos = targetShop.offsetTop + 40; 
+            const isLeft = index % 2 === 0;
+            
+            // Tara moves to the center-front of the shop
+            const leftPos = isLeft 
+                ? targetShop.offsetLeft + (targetShop.offsetWidth/2) - 60 
+                : targetShop.offsetLeft + (targetShop.offsetWidth/2) - 60;
+
+            setTaraAnimation('walk');
+            
+            DOM.tara.style.top = `${topPos}px`;
+            DOM.tara.style.left = `${leftPos}px`;
+
+            // Scroll window
+            setTimeout(() => {
+                targetShop.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => {
+                    setTaraAnimation('idle');
+                    state.isAnimating = false;
+                }, 1000);
+            }, 100);
+        }
+
+        function timerTick() {
+            if(state.isAnimating) return;
+            state.timeLeft--;
+            updateTimerDisplay();
+
+            if(state.timeLeft <= 10) {
+                DOM.hud.timerContainer.classList.add('animate-shake');
+            } else {
+                DOM.hud.timerContainer.classList.remove('animate-shake');
+            }
+
+            if(state.timeLeft <= 0) {
+                clearInterval(state.timerInterval);
+                handleTimeOut();
+            }
+        }
+
+        function updateTimerDisplay() {
+            DOM.hud.timer.textContent = state.timeLeft;
+            DOM.hud.timerContainer.className = `px-3 py-1 rounded-lg font-bold text-xl flex items-center min-w-[80px] justify-center transition-colors ${
+                state.timeLeft > 20 ? 'bg-green-100 text-green-600' : 
+                state.timeLeft > 10 ? 'bg-yellow-100 text-yellow-600' : 'bg-red-500 text-white'
+            }`;
+        }
+
+        function handleTimeOut() {
+            sfx.wrong();
+            setTaraAnimation('sad');
+            state.score = Math.max(0, state.score - 10);
+            updateScore();
+            
+            Swal.fire({
+                title: 'Waktu Habis!',
+                text: 'Tara kebingungan. Coba baca soalnya lagi dengan tenang.',
+                icon: 'warning',
+                confirmButtonText: 'Ulangi',
+                confirmButtonColor: '#f39c12'
+            }).then(() => {
+                retryQuestion();
+            });
+        }
+
+        function retryQuestion() {
+            if(state.isAnimating) return;
+            sfx.click();
+            setTaraAnimation('idle');
+            state.timeLeft = 60;
+            updateTimerDisplay();
+            DOM.panel.inputA.value = '';
+            DOM.panel.inputB.value = '';
+            DOM.panel.inputA.focus();
+            clearInterval(state.timerInterval);
+            state.timerInterval = setInterval(timerTick, 1000);
+        }
+
+        function showHint() {
+            if(state.isAnimating) return;
+            sfx.click();
+            
+            // Simple logic hint
+            const p = state.currentProblem;
+            Swal.fire({
+                title: 'Petunjuk',
+                html: `
+                    <p class="mb-2">Gunakan metode <b>Eliminasi</b> atau <b>Substitusi</b>.</p>
+                    <p class="text-sm bg-gray-100 p-2 rounded text-left font-mono">
+                        Misal Barang A = x, Barang B = y.<br>
+                        Buat 2 persamaan dari cerita, lalu samakan salah satu variabelnya dengan mengalikan persamaannya.
+                    </p>
+                    <p class="text-xs text-red-500 mt-2">*Skor dikurangi 5 untuk petunjuk ini.</p>
+                `,
+                icon: 'info',
+                confirmButtonColor: '#3498db'
+            });
+            state.score = Math.max(0, state.score - 5);
+            updateScore();
+        }
+
+        function checkAnswer() {
+            if(state.isAnimating) return;
+            
+            const ansA = parseInt(DOM.panel.inputA.value);
+            const ansB = parseInt(DOM.panel.inputB.value);
+
+            if(isNaN(ansA) || isNaN(ansB)) {
+                Swal.fire('Eits!', 'Isi kedua harga barang dulu ya!', 'warning');
+                return;
+            }
+
+            clearInterval(state.timerInterval);
+
+            if(ansA === state.currentProblem.x && ansB === state.currentProblem.y) {
+                // Correct
+                sfx.correct();
+                setTaraAnimation('happy');
+                createParticles();
+                
+                // Calculate score based on time
+                let points = 100 + state.timeLeft; 
+                state.score += points;
+                updateScore();
+
+                Swal.fire({
+                    title: '<span style="font-family:Fredoka; color:#27ae60">Hebat! Jawabanmu Benar!</span>',
+                    text: `Skor bertambah +${points}`,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    loadLevel(state.currentLevel + 1);
+                });
+
+            } else {
+                // Wrong
+                sfx.wrong();
+                setTaraAnimation('angry');
+                document.getElementById('hud-bottom').classList.add('animate-shake');
+                setTimeout(() => document.getElementById('hud-bottom').classList.remove('animate-shake'), 500);
+                
+                state.score = Math.max(0, state.score - 10);
+                updateScore();
+
+                Swal.fire({
+                    title: '<span style="font-family:Fredoka; color:#e74c3c; font-size: 28px;">NGITUNG YANG BENER DONG!</span>',
+                    text: 'Harga satuannya belum tepat. Coba cek lagi perhitunganmu.',
+                    imageUrl: 'data:image/svg+xml;utf8,<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="40" fill="%23ff7675"/><path d="M 30 40 L 45 45 M 70 40 L 55 45" stroke="black" stroke-width="4" stroke-linecap="round"/><path d="M 40 70 Q 50 60 60 70" stroke="black" stroke-width="4" fill="none" stroke-linecap="round"/></svg>',
+                    imageWidth: 100,
+                    imageHeight: 100,
+                    confirmButtonText: 'Coba Lagi',
+                    confirmButtonColor: '#e74c3c'
+                }).then(() => {
+                    retryQuestion();
+                });
+            }
+        }
+
+        function updateScore() {
+            DOM.hud.score.textContent = state.score;
+            // Float animation
+            DOM.hud.score.classList.remove('pop-in');
+            void DOM.hud.score.offsetWidth;
+            DOM.hud.score.classList.add('pop-in');
+        }
+
+        function createParticles() {
+            for(let i=0; i<30; i++) {
+                const conf = document.createElement('div');
+                conf.className = 'confetti';
+                conf.style.left = Math.random() * 100 + 'vw';
+                conf.style.backgroundColor = ['#ff4757', '#2ed573', '#1e90ff', '#ffa502', '#ff6b81'][Math.floor(Math.random()*5)];
+                conf.style.animationDuration = (Math.random() * 2 + 1) + 's';
+                document.body.appendChild(conf);
+                setTimeout(() => conf.remove(), 3000);
+            }
+        }
+
+        function endGame() {
+            sfx.levelUp();
+            setTaraAnimation('happy');
+            createParticles();
+            createParticles();
+            
+            DOM.hud.progressBar.style.width = '100%';
+            DOM.hud.progressBarMobile.style.width = '100%';
+            
+            Swal.fire({
+                title: '<span style="font-family:Fredoka; color:#f1c40f; font-size: 36px;">SELAMAT!</span>',
+                html: `
+                    <div class="text-center font-bold text-lg mb-4 text-gray-700">
+                        Kamu telah membantu Tara dan menjadi<br>
+                        <span class="text-2xl text-primary mt-2 block border-2 border-primary p-2 rounded">MASTER OF MARKET ALGEBRA</span>
+                    </div>
+                    <div class="flex justify-around bg-gray-100 p-4 rounded-lg">
+                        <div><div class="text-xs text-gray-500">Skor Akhir</div><div class="text-xl text-green-600">${state.score}</div></div>
+                        <div><div class="text-xs text-gray-500">Toko</div><div class="text-xl text-blue-600">20/20</div></div>
+                    </div>
+                `,
+                confirmButtonText: '<i class="fas fa-download"></i> Unduh Sertifikat',
+                confirmButtonColor: '#27ae60',
+                allowOutsideClick: false
+            }).then((result) => {
+                if(result.isConfirmed) {
+                    generatePDF();
+                }
+            });
+        }
+
+        function generatePDF() {
+            const template = document.getElementById('certificate-template');
+            document.getElementById('cert-name').textContent = state.playerName;
+            document.getElementById('cert-score').textContent = state.score;
+            
+            template.classList.remove('hidden');
+            
+            const opt = {
+                margin:       0,
+                filename:     `Sertifikat_SPLDV_${state.playerName}.pdf`,
+                image:        { type: 'jpeg', quality: 1 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'px', format: [800, 600], orientation: 'landscape' }
+            };
+
+            html2pdf().set(opt).from(template).save().then(() => {
+                template.classList.add('hidden');
+                Swal.fire('Berhasil!', 'Sertifikat telah diunduh. Terima kasih sudah bermain!', 'success').then(()=>{
+                    location.reload(); // Reset game
+                });
+            });
+        }
+
+        // Initialize particles style
+        const style = document.createElement('style');
+        document.head.appendChild(style);
+
+    </script>
+</body>
+</html>
